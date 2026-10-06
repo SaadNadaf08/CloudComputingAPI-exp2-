@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Cloud Services</title>
+<style>
+  :root {
+    --bg-1: #eaf6ec;
+    --bg-2: #cdeacd;
+    --gold: #4f9a5b;
+    --gold-light: #a9d9ae;
+    --text: #2f4a34;
+    --muted: #6f9a76;
+    --good: #4f9a5b;
+    --bad: #c4544a;
+    --glass: rgba(255, 255, 255, 0.45);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
+    color: var(--text);
+    padding: 40px 24px;
+  }
+  header { text-align: center; margin-bottom: 36px; }
+  header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(201, 162, 75, 0.35);
+    box-shadow: 0 6px 20px rgba(201, 162, 75, 0.15);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+  input, textarea {
+    width: 100%;
+    padding: 9px 10px;
+    margin: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--gold-light);
+    background: rgba(255,255,255,0.6);
+    color: var(--text);
+    font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+  button {
+    background: var(--gold);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  button:hover { background: #3f7d49; }
+  .result {
+    margin-top: 12px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(6px);
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 0.82rem;
+    min-height: 20px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: 1px solid rgba(201, 162, 75, 0.2);
+  }
+  .status { font-size: 0.75rem; margin-top: 8px; }
+  .status.ok { color: var(--good); }
+  .status.err { color: var(--bad); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cloud Services</h1>
+</header>
+
+<div class="grid">
+
+  <!-- Weather -->
+  <div class="card">
+    <h2>Weather</h2>
+    <div>
+      <input id="lat" placeholder="Latitude" value="18.52" />
+      <input id="lon" placeholder="Longitude" value="73.85" />
+      <button onclick="getWeather()">Get Live Weather</button>
+    </div>
+    <div class="status" id="weather-status"></div>
+    <div class="result" id="weather-result"></div>
+  </div>
+
+  <!-- GitHub -->
+  <div class="card">
+    <h2>GitHub Profile</h2>
+    <div>
+      <input id="github-username" placeholder="GitHub username" value="octocat" />
+      <button onclick="getGithub()">Fetch Profile</button>
+    </div>
+    <div class="status" id="github-status"></div>
+    <div class="result" id="github-result"></div>
+  </div>
+
+  <!-- Books -->
+  <div class="card">
+    <h2>Books</h2>
+    <div>
+      <input id="book-query" placeholder="Search topic" value="Cloud Computing" />
+      <button onclick="getBooks()">Search Books</button>
+    </div>
+    <div class="status" id="books-status"></div>
+    <div class="result" id="books-result"></div>
+  </div>
+
+  <!-- Feedback -->
+  <div class="card">
+    <h2>Feedback</h2>
+    <div>
+      <input id="fb-name" placeholder="Your name" />
+      <textarea id="fb-message" rows="2" placeholder="Your feedback"></textarea>
+      <button onclick="postFeedback()">Submit Feedback</button>
+    </div>
+    <div class="status" id="feedback-status"></div>
+    <div class="result" id="feedback-result"></div>
+  </div>
+
+</div>
+
+<script>
+  const BASE_URL = "http://localhost:5000";
+
+  function showResult(id, statusId, ok, statusCode, data) {
+    document.getElementById(id).textContent = JSON.stringify(data, null, 2);
+    const statusEl = document.getElementById(statusId);
+    statusEl.textContent = ok
+      ? `Status ${statusCode} — cloud service responded`
+      : `Status ${statusCode || "N/A"} — request failed`;
+    statusEl.className = "status " + (ok ? "ok" : "err");
+  }
+
+  async function callBackend(path, id, statusId, options) {
+    document.getElementById(statusId).textContent = "Loading...";
+    document.getElementById(statusId).className = "status";
+    try {
+      const res = await fetch(BASE_URL + path, options);
+      const json = await res.json();
+      showResult(id, statusId, res.ok, json.cloudStatusCode || res.status, json.data || json);
+    } catch (err) {
+      showResult(id, statusId, false, null, { error: err.message });
+    }
+  }
+
+  function getWeather() {
+    const lat = document.getElementById("lat").value;
+    const lon = document.getElementById("lon").value;
+    callBackend(`/api/weather?lat=${lat}&lon=${lon}`, "weather-result", "weather-status");
+  }
+
+  function getGithub() {
+    const username = document.getElementById("github-username").value.trim();
+    callBackend(`/api/github/${username}`, "github-result", "github-status");
+  }
+
+  function getBooks() {
+    const q = document.getElementById("book-query").value;
+    callBackend(`/api/books?q=${encodeURIComponent(q)}`, "books-result", "books-status");
+  }
+
+  function postFeedback() {
+    const name = document.getElementById("fb-name").value;
+    const message = document.getElementById("fb-message").value;
+    callBackend("/api/feedback", "feedback-result", "feedback-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, message }),
+    });
+  }
+</script>
+
+</body>
+</html>
